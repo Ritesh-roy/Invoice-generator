@@ -101,7 +101,19 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
+  html, body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@media print {
+  body * { visibility: hidden; }
+  #invoice-preview, #invoice-preview * { visibility: visible; }
+  #invoice-preview {
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    box-shadow: none !important;
   }
 }
