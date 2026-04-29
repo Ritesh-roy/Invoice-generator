@@ -3,6 +3,10 @@ import { Invoice, computeTotals, fmt, useStore } from "@/lib/store";
 const InvoicePreview = ({ invoice }: { invoice: Invoice }) => {
   const settings = useStore((s) => s.settings);
   const { subtotal, gstAmount, total } = computeTotals(invoice);
+  const dueDate = new Date(invoice.dueDate);
+  const today = new Date();
+  const dueDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const dueLabel = dueDays < 0 ? `Overdue by ${Math.abs(dueDays)} day${Math.abs(dueDays) === 1 ? "" : "s"}` : `${dueDays} day${dueDays === 1 ? "" : "s"} left`;
 
   return (
     <div id="print-area" className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
@@ -29,6 +33,7 @@ const InvoicePreview = ({ invoice }: { invoice: Invoice }) => {
           <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
             <div>Issued: <span className="font-medium text-foreground">{invoice.date}</span></div>
             <div>Due: <span className="font-medium text-foreground">{invoice.dueDate}</span></div>
+            <div className="rounded-full bg-secondary/60 px-2 py-1 inline-flex text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{dueLabel}</div>
           </div>
         </div>
       </div>
@@ -36,9 +41,18 @@ const InvoicePreview = ({ invoice }: { invoice: Invoice }) => {
       <div className="grid grid-cols-2 gap-6 border-b border-border p-7">
         <div>
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Bill To</div>
-          <div className="mt-2 text-sm font-semibold">{invoice.clientName || "—"}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{invoice.clientEmail}</div>
-          <div className="text-xs text-muted-foreground">{invoice.clientPhone}</div>
+          <div className="mt-2 text-sm font-semibold">{invoice.clientCompany || invoice.clientName || "—"}</div>
+          {invoice.clientName && <div className="mt-1 text-xs text-muted-foreground">{invoice.clientName}</div>}
+          {invoice.clientEmail && <div className="text-xs text-muted-foreground">{invoice.clientEmail}</div>}
+          {invoice.clientPhone && <div className="text-xs text-muted-foreground">{invoice.clientPhone}</div>}
+          {(invoice.clientAddress || invoice.clientCity || invoice.clientPostalCode || invoice.clientState || invoice.clientCountry) && (
+            <div className="mt-2 text-xs text-muted-foreground">
+              {invoice.clientAddress && <div>{invoice.clientAddress}</div>}
+              <div>{[invoice.clientCity, invoice.clientState, invoice.clientPostalCode, invoice.clientCountry].filter(Boolean).join(", ")}</div>
+            </div>
+          )}
+          {invoice.clientGstNumber && <div className="mt-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">GSTIN: {invoice.clientGstNumber}</div>}
+          {invoice.clientPan && <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">PAN: {invoice.clientPan}</div>}
         </div>
         <div className="text-right">
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Amount Due</div>
@@ -91,6 +105,20 @@ const InvoicePreview = ({ invoice }: { invoice: Invoice }) => {
           </div>
         </div>
       </div>
+
+      {invoice.customFields.length > 0 && (
+        <div className="border-t border-border bg-secondary/30 p-7">
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Custom Fields</div>
+          <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+            {invoice.customFields.map((field) => (
+              <div key={field.id} className="flex justify-between rounded-xl bg-background px-3 py-2">
+                <span className="font-medium">{field.label}</span>
+                <span>{field.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {invoice.notes && (
         <div className="border-t border-border bg-secondary/30 p-7">

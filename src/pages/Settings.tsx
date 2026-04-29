@@ -30,6 +30,16 @@ const Settings = () => {
             <div className="sm:col-span-2"><label className={labelBase}>Company Name</label><input className={inputBase} value={s.companyName} onChange={(e) => actions.updateSettings({ companyName: e.target.value })} /></div>
             <div><label className={labelBase}>Email</label><input className={inputBase} value={s.email} onChange={(e) => actions.updateSettings({ email: e.target.value })} /></div>
             <div><label className={labelBase}>Phone</label><input className={inputBase} value={s.phone} onChange={(e) => actions.updateSettings({ phone: e.target.value })} /></div>
+            <div><label className={labelBase}>Country</label><select className={inputBase} value={s.country} onChange={(e) => actions.updateSettings({ country: e.target.value })}>
+                <option value="India">India</option>
+                <option value="United States">United States</option>
+                <option value="United Kingdom">United Kingdom</option>
+                <option value="Australia">Australia</option>
+              </select>
+            </div>
+            <div><label className={labelBase}>City</label><input className={inputBase} value={s.city} onChange={(e) => actions.updateSettings({ city: e.target.value })} /></div>
+            <div><label className={labelBase}>Postal Code</label><input className={inputBase} value={s.postalCode} onChange={(e) => actions.updateSettings({ postalCode: e.target.value })} /></div>
+            <div><label className={labelBase}>State</label><input className={inputBase} value={s.state} onChange={(e) => actions.updateSettings({ state: e.target.value })} /></div>
             <div className="sm:col-span-2"><label className={labelBase}>Address</label><input className={inputBase} value={s.address} onChange={(e) => actions.updateSettings({ address: e.target.value })} /></div>
             <div><label className={labelBase}>GST Number</label><input className={inputBase} value={s.gstNumber} onChange={(e) => actions.updateSettings({ gstNumber: e.target.value })} /></div>
           </div>
@@ -72,6 +82,13 @@ const Settings = () => {
               >
                 <Moon className="h-5 w-5" /> Dark
               </button>
+            </div>
+            <div className="mt-6">
+              <label className={labelBase}>Language</label>
+              <select className={inputBase} value={s.language} onChange={(e) => actions.updateSettings({ language: e.target.value as "English" | "Hindi" })}>
+                <option value="English">English</option>
+                <option value="Hindi">Hindi</option>
+              </select>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 export type InvoiceItem = { id: string; name: string; qty: number; price: number };
+export type InvoiceField = { id: string; label: string; value: string };
 export type InvoiceStatus = "paid" | "pending";
 export type Invoice = {
   id: string;
@@ -9,31 +10,66 @@ export type Invoice = {
   clientName: string;
   clientEmail: string;
   clientPhone: string;
+  clientCompany: string;
+  clientAddress: string;
+  clientCity: string;
+  clientPostalCode: string;
+  clientState: string;
+  clientCountry: string;
+  clientGstNumber: string;
+  clientPan: string;
   date: string;
   dueDate: string;
   items: InvoiceItem[];
   gst: number;
   discount: number;
   notes: string;
+  customFields: InvoiceField[];
   status: InvoiceStatus;
   createdAt: number;
 };
 export type Client = {
-  id: string; name: string; email: string; phone: string; company?: string; address?: string;
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  company?: string;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+  state?: string;
+  country?: string;
+  gstNumber?: string;
+  pan?: string;
+};
+export type UserRole = "admin" | "client";
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  clientId?: string;
 };
 export type Settings = {
   companyName: string;
   email: string;
   phone: string;
   address: string;
+  city: string;
+  postalCode: string;
+  state: string;
+  country: string;
   gstNumber: string;
   logo: string; // data url
   theme: "light" | "dark";
+  language: "English" | "Hindi";
 };
 
-type State = { invoices: Invoice[]; clients: Client[]; settings: Settings };
+type AuthState = { currentUser: User | null; users: User[] };
+type State = { invoices: Invoice[]; clients: Client[]; settings: Settings; auth: AuthState };
 
-const KEY = "qrubis-invoice-store-v1";
+const KEY = "leo-invoice-store-v1";
 
 const seed = (): State => {
   const c1 = { id: crypto.randomUUID(), name: "Acme Corporation", email: "billing@acme.com", phone: "+91 98765 43210", company: "Acme Corp" };
@@ -45,13 +81,45 @@ const seed = (): State => {
     return {
       id: crypto.randomUUID(),
       number: `INV-${String(1000 + n)}`,
-      clientId: c.id, clientName: c.name, clientEmail: c.email, clientPhone: c.phone,
+      clientId: c.id,
+      clientName: c.name,
+      clientEmail: c.email,
+      clientPhone: c.phone,
+      clientCompany: c.company || "",
+      clientAddress: c.address || "",
+      clientCity: c.city || "",
+      clientPostalCode: c.postalCode || "",
+      clientState: c.state || "",
+      clientCountry: c.country || "",
+      clientGstNumber: c.gstNumber || "",
+      clientPan: c.pan || "",
       date: d.toISOString().slice(0, 10),
       dueDate: due.toISOString().slice(0, 10),
-      items, gst: 18, discount: 0, notes: "Thank you for your business.",
-      status, createdAt: d.getTime(),
+      items,
+      gst: 18,
+      discount: 0,
+      notes: "Thank you for your business.",
+      customFields: [],
+      status,
+      createdAt: d.getTime(),
     };
   };
+  const adminUser: User = {
+    id: crypto.randomUUID(),
+    name: "Leo Admin",
+    email: "leo@gmail.com",
+    password: "Leo123!",
+    role: "admin",
+  };
+  const clientUsers: User[] = [c1, c2, c3].map((client) => ({
+    id: crypto.randomUUID(),
+    name: client.name,
+    email: client.email.toLowerCase(),
+    password: "client123",
+    role: "client",
+    clientId: client.id,
+  }));
+
   return {
     clients: [c1, c2, c3],
     invoices: [
@@ -61,22 +129,35 @@ const seed = (): State => {
       mk(4, c1, "pending", 2, [{ id: crypto.randomUUID(), name: "Hosting (1 yr)", qty: 1, price: 4500 }]),
     ],
     settings: {
-      companyName: "Qrubis E-commerce",
-      email: "hello@qrubis.com",
+      companyName: "Leo Invoice",
+      email: "hello@leo-invoice.com",
       phone: "+91 80000 12345",
       address: "Bengaluru, India",
+      city: "Bengaluru",
+      postalCode: "560001",
+      state: "Karnataka",
+      country: "India",
       gstNumber: "29ABCDE1234F1Z5",
       logo: "",
       theme: "light",
+      language: "English",
+    },
+    auth: {
+      currentUser: null,
+      users: [adminUser, ...clientUsers],
     },
   };
 };
+
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
 const load = (): State => {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return seed();
-    return JSON.parse(raw) as State;
+    const data = JSON.parse(raw) as Partial<State>;
+    if (!data.auth || !Array.isArray(data.auth.users)) return seed();
+    return data as State;
   } catch { return seed(); }
 };
 
@@ -125,6 +206,54 @@ export const actions = {
   },
   updateSettings(patch: Partial<Settings>) {
     state = { ...state, settings: { ...state.settings, ...patch } };
+    persist();
+  },
+  signIn(email: string, password: string, role: UserRole) {
+    const normalizedEmail = normalizeEmail(email);
+    const user = state.auth.users.find((u) => u.email === normalizedEmail && u.role === role);
+    if (!user) throw new Error(role === "admin" ? "Admin account not found." : "No account found.");
+    if (user.password !== password) throw new Error("Invalid password.");
+    state = { ...state, auth: { ...state.auth, currentUser: user } };
+    persist();
+    return user;
+  },
+  registerClientUser(name: string, email: string, password: string) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail.endsWith("@gmail.com")) throw new Error("Please use a Gmail address.");
+    if (state.auth.users.some((u) => u.email === normalizedEmail)) throw new Error("This email is already registered.");
+    const clientId = crypto.randomUUID();
+    const client: Client = {
+      id: clientId,
+      name,
+      email: normalizedEmail,
+      phone: "",
+      company: name,
+      address: "",
+      city: "",
+      postalCode: "",
+      state: "",
+      country: "India",
+      gstNumber: "",
+      pan: "",
+    };
+    const user: User = {
+      id: crypto.randomUUID(),
+      name,
+      email: normalizedEmail,
+      password,
+      role: "client",
+      clientId,
+    };
+    state = {
+      ...state,
+      clients: [client, ...state.clients],
+      auth: { ...state.auth, users: [user, ...state.auth.users], currentUser: user },
+    };
+    persist();
+    return user;
+  },
+  signOut() {
+    state = { ...state, auth: { ...state.auth, currentUser: null } };
     persist();
   },
 };

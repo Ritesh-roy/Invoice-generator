@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowUpRight, FileText, IndianRupee, Plus, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowUpRight, FileText, IndianRupee, Plus, Clock, CheckCircle2, Users, AlertCircle } from "lucide-react";
 import { computeTotals, fmt, useStore } from "@/lib/store";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -19,10 +19,13 @@ const Stat = ({ label, value, icon: Icon, accent }: { label: string; value: stri
 
 const Dashboard = () => {
   const invoices = useStore((s) => s.invoices);
+  const clients = useStore((s) => s.clients);
   const totals = invoices.map((i) => computeTotals(i).total);
   const revenue = invoices.filter((i) => i.status === "paid").reduce((s, i) => s + computeTotals(i).total, 0);
   const pending = invoices.filter((i) => i.status === "pending").length;
   const paid = invoices.filter((i) => i.status === "paid").length;
+  const overdue = invoices.filter((i) => i.status === "pending" && new Date(i.dueDate) < new Date()).length;
+  const average = invoices.length ? fmt(totals.reduce((s, c) => s + c, 0) / invoices.length) : fmt(0);
   const recent = [...invoices].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
 
   return (
@@ -37,11 +40,62 @@ const Dashboard = () => {
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         <Stat label="Total Revenue" value={fmt(revenue)} icon={IndianRupee} accent="bg-primary/10 text-primary" />
         <Stat label="Total Invoices" value={String(invoices.length)} icon={FileText} accent="bg-foreground/10 text-foreground" />
         <Stat label="Paid Invoices" value={String(paid)} icon={CheckCircle2} accent="bg-success/10 text-success" />
         <Stat label="Pending Invoices" value={String(pending)} icon={Clock} accent="bg-warning/10 text-warning" />
+        <Stat label="Overdue Invoices" value={String(overdue)} icon={AlertCircle} accent="bg-destructive/10 text-destructive" />
+        <Stat label="Total Clients" value={String(clients.length)} icon={Users} accent="bg-primary/10 text-primary" />
+      </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold">Upcoming due</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Invoices due in the next 7 days.</p>
+            </div>
+            <div className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">{average} average</div>
+          </div>
+          <div className="mt-6 space-y-3">
+            {invoices.filter((i) => {
+              const due = new Date(i.dueDate);
+              const now = new Date();
+              const diff = due.getTime() - now.getTime();
+              return i.status === "pending" && diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
+            }).slice(0, 4).map((inv) => {
+              const due = new Date(inv.dueDate);
+              const daysLeft = Math.ceil((due.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+              return (
+                <div key={inv.id} className="flex items-center justify-between rounded-2xl border border-border bg-background px-4 py-3">
+                  <div>
+                    <div className="font-semibold">{inv.number}</div>
+                    <div className="text-xs text-muted-foreground">{inv.clientName} • due in {daysLeft} day{daysLeft === 1 ? "" : "s"}</div>
+                  </div>
+                  <div className="text-sm font-semibold">{fmt(computeTotals(inv).total)}</div>
+                </div>
+              );
+            })}
+            {invoices.filter((i) => {
+              const due = new Date(i.dueDate);
+              const now = new Date();
+              const diff = due.getTime() - now.getTime();
+              return i.status === "pending" && diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
+            }).length === 0 && (
+              <div className="rounded-2xl border border-border bg-background px-4 py-6 text-center text-sm text-muted-foreground">No invoices are due within the next 7 days.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+          <h2 className="text-base font-semibold">Quick actions</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Use the dashboard to manage invoices and clients faster.</p>
+          <div className="mt-6 space-y-3">
+            <Link to="/invoices/new" className="block rounded-2xl border border-border bg-background px-4 py-3 text-sm font-semibold hover:bg-secondary">Create a new invoice</Link>
+            <Link to="/clients" className="block rounded-2xl border border-border bg-background px-4 py-3 text-sm font-semibold hover:bg-secondary">Review clients</Link>
+            <Link to="/settings" className="block rounded-2xl border border-border bg-background px-4 py-3 text-sm font-semibold hover:bg-secondary">Update company settings</Link>
+          </div>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-border bg-card shadow-soft">

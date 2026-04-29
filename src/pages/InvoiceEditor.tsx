@@ -10,10 +10,11 @@ const addDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n
 const blank = (): Invoice => ({
   id: crypto.randomUUID(),
   number: newInvoiceNumber(),
-  clientId: "", clientName: "", clientEmail: "", clientPhone: "",
+  clientId: "", clientName: "", clientEmail: "", clientPhone: "", clientCompany: "", clientAddress: "", clientCity: "", clientPostalCode: "", clientState: "", clientCountry: "India", clientGstNumber: "", clientPan: "",
   date: today(), dueDate: addDays(14),
   items: [{ id: crypto.randomUUID(), name: "", qty: 1, price: 0 }],
   gst: 18, discount: 0, notes: "Thank you for your business.",
+  customFields: [],
   status: "pending", createdAt: Date.now(),
 });
 
@@ -25,13 +26,17 @@ const InvoiceEditor = () => {
   const navigate = useNavigate();
   const existing = useStore((s) => id ? s.invoices.find((i) => i.id === id) : undefined);
   const clients = useStore((s) => s.clients);
-  const [inv, setInv] = useState<Invoice>(existing ?? blank());
+  const [inv, setInv] = useState<Invoice>(existing ? { ...blank(), ...existing, customFields: existing.customFields ?? [] } : blank());
 
   const update = (patch: Partial<Invoice>) => setInv((prev) => ({ ...prev, ...patch }));
   const addItem = () => update({ items: [...inv.items, { id: crypto.randomUUID(), name: "", qty: 1, price: 0 }] });
   const updateItem = (iid: string, patch: Partial<Invoice["items"][number]>) =>
     update({ items: inv.items.map((it) => it.id === iid ? { ...it, ...patch } : it) });
   const removeItem = (iid: string) => update({ items: inv.items.filter((it) => it.id !== iid) });
+  const addCustomField = () => update({ customFields: [...inv.customFields, { id: crypto.randomUUID(), label: "Field label", value: "" }] });
+  const updateCustomField = (fid: string, patch: Partial<Invoice["customFields"][number]>) =>
+    update({ customFields: inv.customFields.map((field) => field.id === fid ? { ...field, ...patch } : field) });
+  const removeCustomField = (fid: string) => update({ customFields: inv.customFields.filter((field) => field.id !== fid) });
 
   const subtotal = useMemo(() => inv.items.reduce((s, i) => s + i.qty * i.price, 0), [inv.items]);
   const gstAmount = (subtotal * inv.gst) / 100;
@@ -45,7 +50,20 @@ const InvoiceEditor = () => {
   const pickClient = (cid: string) => {
     const c = clients.find((x) => x.id === cid);
     if (!c) return;
-    update({ clientId: c.id, clientName: c.name, clientEmail: c.email, clientPhone: c.phone });
+    update({
+      clientId: c.id,
+      clientName: c.name,
+      clientEmail: c.email,
+      clientPhone: c.phone,
+      clientCompany: c.company || "",
+      clientAddress: c.address || "",
+      clientCity: c.city || "",
+      clientPostalCode: c.postalCode || "",
+      clientState: c.state || "",
+      clientCountry: c.country || "",
+      clientGstNumber: c.gstNumber || "",
+      clientPan: c.pan || "",
+    });
   };
 
   return (
@@ -101,7 +119,11 @@ const InvoiceEditor = () => {
               )}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
-                  <label className={labelBase}>Name</label>
+                  <label className={labelBase}>Client Business Name</label>
+                  <input className={inputBase} value={inv.clientCompany} onChange={(e) => update({ clientCompany: e.target.value })} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={labelBase}>Client Name</label>
                   <input className={inputBase} value={inv.clientName} onChange={(e) => update({ clientName: e.target.value })} />
                 </div>
                 <div>
@@ -111,6 +133,39 @@ const InvoiceEditor = () => {
                 <div>
                   <label className={labelBase}>Phone</label>
                   <input className={inputBase} value={inv.clientPhone} onChange={(e) => update({ clientPhone: e.target.value })} />
+                </div>
+                <div>
+                  <label className={labelBase}>Country</label>
+                  <select className={inputBase} value={inv.clientCountry} onChange={(e) => update({ clientCountry: e.target.value })}>
+                    <option value="India">India</option>
+                    <option value="United States">United States</option>
+                    <option value="United Kingdom">United Kingdom</option>
+                    <option value="Australia">Australia</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelBase}>GSTIN</label>
+                  <input className={inputBase} value={inv.clientGstNumber} onChange={(e) => update({ clientGstNumber: e.target.value })} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={labelBase}>Address</label>
+                  <input className={inputBase} value={inv.clientAddress} onChange={(e) => update({ clientAddress: e.target.value })} />
+                </div>
+                <div>
+                  <label className={labelBase}>City</label>
+                  <input className={inputBase} value={inv.clientCity} onChange={(e) => update({ clientCity: e.target.value })} />
+                </div>
+                <div>
+                  <label className={labelBase}>Postal Code</label>
+                  <input className={inputBase} value={inv.clientPostalCode} onChange={(e) => update({ clientPostalCode: e.target.value })} />
+                </div>
+                <div>
+                  <label className={labelBase}>State</label>
+                  <input className={inputBase} value={inv.clientState} onChange={(e) => update({ clientState: e.target.value })} />
+                </div>
+                <div>
+                  <label className={labelBase}>PAN</label>
+                  <input className={inputBase} value={inv.clientPan} onChange={(e) => update({ clientPan: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -154,6 +209,30 @@ const InvoiceEditor = () => {
               <div>
                 <label className={labelBase}>Discount (₹)</label>
                 <input type="number" min={0} className={inputBase} value={inv.discount} onChange={(e) => update({ discount: parseFloat(e.target.value) || 0 })} />
+              </div>
+            </div>
+
+            <div className="mt-7 rounded-2xl border border-border bg-background p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider">Custom fields</h3>
+                  <p className="text-xs text-muted-foreground">Add extra invoice labels like PAN, order ID, or reference.</p>
+                </div>
+                <button onClick={addCustomField} className="rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90">
+                  <Plus className="h-3.5 w-3.5" /> Add
+                </button>
+              </div>
+              <div className="mt-4 space-y-3">
+                {inv.customFields.map((field) => (
+                  <div key={field.id} className="grid gap-2 sm:grid-cols-[1fr_1fr_40px]">
+                    <input className={inputBase} value={field.label} onChange={(e) => updateCustomField(field.id, { label: e.target.value })} placeholder="Field label" />
+                    <input className={inputBase} value={field.value} onChange={(e) => updateCustomField(field.id, { value: e.target.value })} placeholder="Value" />
+                    <button type="button" onClick={() => removeCustomField(field.id)} className="rounded-xl border border-border bg-card px-3 text-sm text-destructive hover:bg-destructive/10">Remove</button>
+                  </div>
+                ))}
+                {inv.customFields.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">No custom fields added.</div>
+                )}
               </div>
             </div>
 

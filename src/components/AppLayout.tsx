@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import {
   LayoutDashboard, FileText, Users, Settings as SettingsIcon, Plus,
-  Bell, Search, Moon, Sun, Menu, X,
+  Bell, Search, Moon, Sun, Menu, X, LogIn,
 } from "lucide-react";
 import { actions, useStore, useTheme } from "@/lib/store";
 
@@ -16,6 +16,7 @@ const navItems = [
 const AppLayout = () => {
   const theme = useTheme();
   const settings = useStore((s) => s.settings);
+  const currentUser = useStore((s) => s.auth.currentUser);
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -26,7 +27,7 @@ const AppLayout = () => {
           <img src={settings.logo} alt="logo" className="h-9 w-9 rounded-lg object-cover" />
         ) : (
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-foreground text-sm font-bold text-primary-foreground">
-            Q
+            {settings.companyName.slice(0, 1)}
           </div>
         )}
         <div className="min-w-0">
@@ -100,6 +101,22 @@ const AppLayout = () => {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            {currentUser ? (
+              <button
+                onClick={() => { actions.signOut(); navigate("/login"); }}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground hover:bg-secondary"
+              >
+                Logout
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate("/login")}
+                className="rounded-xl p-2 text-muted-foreground hover:bg-secondary"
+                aria-label="Login"
+              >
+                <LogIn className="h-[18px] w-[18px]" />
+              </button>
+            )}
             <button
               onClick={() => actions.updateSettings({ theme: theme === "dark" ? "light" : "dark" })}
               className="rounded-xl p-2 text-muted-foreground hover:bg-secondary"
@@ -115,7 +132,7 @@ const AppLayout = () => {
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-foreground text-[11px] font-bold text-primary-foreground">
                 {settings.companyName.slice(0, 1)}
               </div>
-              <span className="hidden text-xs font-semibold sm:inline">Admin</span>
+              <span className="hidden text-xs font-semibold sm:inline">{currentUser ? currentUser.name : "Admin"}</span>
             </Link>
           </div>
         </header>
